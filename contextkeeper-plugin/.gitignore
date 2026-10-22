@@ -3,3 +3,6 @@ dist/
 oclif.manifest.json
 *.tsbuildinfo
 .sf/
+
+# Local ContextKeeper session data
+.contextkeeper/
