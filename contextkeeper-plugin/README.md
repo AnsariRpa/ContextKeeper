@@ -1,88 +1,161 @@
-# agentia-cli-contextkeeper-plugin
+﻿# ContextKeeper
+### AI-Powered Development Handover Assistant for Copado Agentia CLI
 
-Agentia CLI oclif plugin
+ContextKeeper helps developers preserve development context between work sessions. It combines manually recorded task knowledge with automatically captured Git metadata, saves a structured handover locally, and exports it as Markdown.
 
-After install or link, it adds:
+## The Problem
 
-```text
-agentia contextkeeper hello [NAME] [--from VALUE] [--json]
+When developers stop work and return later, they often have to reconstruct:
+- What they were working on
+- What they completed
+- Why they made particular decisions
+- What remains blocked
+- What they should do next
+
+Git history provides code activity, but it does not capture the developer's reasoning or next steps.
+
+## The Solution
+
+ContextKeeper provides a repeatable handover workflow through the Copado Agentia CLI.
+
+A developer records the task, completed work, decisions, blockers, and next steps. ContextKeeper captures the current Git branch, working-tree status, and recent commits, then stores the combined handover locally and generates a Markdown report.
+
+## Current Features
+
+- **Capture:** Save a structured handover and capture Git metadata in one command.
+- **List:** Display saved handovers and their IDs.
+- **Resume:** Read a saved handover before continuing work.
+- **Export:** Generate a Markdown report from a saved handover.
+- **Git context:** Inspect the current branch, working-tree status, and recent commits.
+- **Local storage:** Store handovers in `.contextkeeper/handovers.json`.
+
+## Technology Stack
+
+- TypeScript
+- Node.js
+- Copado Agentia CLI
+- Copado Agentia Plugin SDK
+- oclif command framework
+- Git
+- JSON and Markdown
+
+## Prerequisites
+
+- Node.js 22.12 or later
+- npm
+- Git
+- Copado Agentia CLI installed and configured sufficiently to run local plugins
+
+## Installation and Development
+
+Clone the repository and enter the plugin directory:
+
+```powershell
+git clone https://github.com/AnsariRpa/ContextKeeper.git
+cd ContextKeeper/contextkeeper-plugin
 ```
 
-It prints a greeting, which Agentia credential sets (`cicd`, `crt`, `ai`) are configured, and the active work item, using the plugin SDK.
+Install dependencies and build:
 
-## Getting started
-
-If you created this plugin with `npm init @copado/agentia-plugin`, dependencies are already installed.
-
-```sh
+```powershell
+npm install
 npm run build
 agentia plugins link .
 ```
 
-Confirm:
+The plugin is linked into the local Agentia CLI. Run the commands from your Git project directory so the Git context and `.contextkeeper` data correspond to that project.
 
-```sh
-agentia plugins
-agentia contextkeeper hello
-agentia contextkeeper hello World --from me
+## Usage
+
+### 1. Capture a handover
+
+```powershell
+agentia contextkeeper capture --title "API integration" --task "Integrate the customer API" --completed "Created request and response models" --decisions "Use the existing HTTP client" --blockers "Waiting for test credentials" --next "Add error handling and integration tests"
 ```
 
-Re-run `npm run build` after TypeScript changes. Linked ESM plugins load compiled `dist/` output.
+The command prints the generated handover ID and Markdown export path.
 
-## Install from npm
+### 2. List handovers
 
-```sh
-agentia plugins install agentia-cli-contextkeeper-plugin
+```powershell
+agentia contextkeeper list
 ```
 
-## Using the Agentia host
+### 3. Resume a session
 
-Commands extend `AgentiaCommand` from `@copado/agentia-plugin-sdk`, which adds `--json`, `display`, and `withSpinner`. Call the host from inside `run()`:
+Replace `YOUR_ID` with the ID printed by the capture command:
 
-```ts
-import {AgentiaCommand, getAgentiaHost} from '@copado/agentia-plugin-sdk'
-
-const host = getAgentiaHost({requires: ['auth.status', 'format.table', 'work.getWorkItem']})
-const story = await host.work.getWorkItem()
-this.display(() => {
-  this.log(host.format.table(
-    [{field: 'name', header: 'Story'}, {field: 'status', header: 'Status'}],
-    [story],
-  ))
-})
+```powershell
+agentia contextkeeper resume YOUR_ID
 ```
 
-Host methods available today: `work.getWorkItem`, `organization.healthCheck`, `auth.status`, and `format.table`. See the [SDK README](https://www.npmjs.com/package/@copado/agentia-plugin-sdk) for details.
+### 4. Export a handover
 
-- List every host method the plugin uses in `requires` (in the command and in `agentia.requires` in `package.json`). An older CLI then fails with a clear "update the CLI" message.
-- Fill in `agentia.permissions` in `package.json` honestly (network hosts, file scope, executables, environment variables). It is declared for review and is not enforced.
-- The host never gives a plugin credentials. Do not import `@copado/agentia-cli` or run `agentia` as a subprocess.
-- Plugins run in the CLI process with the user's permissions. Install only plugins you trust.
+```powershell
+agentia contextkeeper export YOUR_ID
+```
 
-## Not supported yet
+### 5. Inspect Git context separately
 
-- Extending or wrapping existing Agentia commands (`cicd work commit`, and so on)
-- Registering MCP tools through a plugin (`agentia mcp start` only loads tools shipped with the CLI)
+```powershell
+agentia contextkeeper git-context
+```
 
-Need another host capability? Ask the Agentia CLI team; each method is a deliberate addition.
+## Generated Files
 
-## Requirements
-
-- Node.js 22.12 or newer
-- Agentia CLI available on your `PATH`
-
-## Layout
+Runtime data is stored in the current working directory:
 
 ```text
-agentia-cli-contextkeeper-plugin/
-  package.json
-  tsconfig.json
-  src/
-    index.ts
-    commands/
-      contextkeeper/
-        hello.ts
-  dist/
+.contextkeeper/
+├── handovers.json
+└── exports/
+    └── <handover-id>.md
 ```
 
-Generated with `npm init @copado/agentia-plugin`.
+This directory is local runtime data and should not be committed to version control.
+
+## Architecture
+
+```text
+Developer
+   |
+   v
+Agentia CLI
+   |
+   v
+ContextKeeper commands
+   |
+   +---- Git metadata collection
+   |
+   +---- Structured handover creation
+   |
+   +---- Local JSON storage
+   |
+   +---- Markdown export
+```
+
+## Current Limitations
+
+- Task details, decisions, blockers, and next steps are entered by the developer.
+- Git context is collected automatically, but code changes are not semantically summarized by an AI model.
+- Data is stored locally; cross-device synchronization is not implemented.
+- The current workflow assumes commands are run from the intended project directory.
+- Agentia integration currently uses the CLI plugin and command framework; this version does not claim a live Salesforce or Copado org integration.
+
+## Roadmap
+
+- Improve project-root discovery and runtime data handling.
+- Add validation and automated tests.
+- Improve error handling and handover search.
+- Explore an Agentia-powered summarization workflow supported by available integrations.
+- Prepare a reproducible end-to-end hackathon demonstration.
+
+## Hackathon Project
+
+Built for the Copado Agentia Headless Virtual Hackathon.
+
+**Repository:** https://github.com/AnsariRpa/ContextKeeper
+
+## License
+
+MIT
