@@ -1,0 +1,12 @@
+[
+  {
+    "id": "7eeb8b92",
+    "title": "First session",
+    "task": "Build ContextKeeper",
+    "completed": "Created initial plugin scaffold",
+    "decisions": "Use local Markdown/JSON handover storage",
+    "blockers": "None",
+    "nextSteps": "Test save and resume",
+    "createdAt": "2026-10-22T01:53:55.248Z"
+  }
+]
