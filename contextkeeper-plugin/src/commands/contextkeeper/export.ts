@@ -18,15 +18,12 @@ export default class Export extends AgentiaCommand {
     const { args } = await this.parse(Export);
     const handover = await getHandover(args.id);
 
-    if (!handover) {
-      this.error(`No handover found with ID: ${args.id}`);
-    }
+    if (!handover) this.error(`No handover found with ID: ${args.id}`);
 
     const directory = path.join(process.cwd(), ".contextkeeper", "exports");
     await mkdir(directory, { recursive: true });
 
-    const filename = `${handover.id}.md`;
-    const content = [
+    const sections = [
       `# ${handover.title}`,
       "",
       `**Created:** ${handover.createdAt}`,
@@ -47,11 +44,14 @@ export default class Export extends AgentiaCommand {
       "## Next Steps",
       handover.nextSteps,
       "",
-    ].join("\n");
+    ];
 
-    const outputPath = path.join(directory, filename);
-    await writeFile(outputPath, content, "utf8");
+    if (handover.gitContext) {
+      sections.push("## Git Development Context", "", handover.gitContext, "");
+    }
 
+    const outputPath = path.join(directory, `${handover.id}.md`);
+    await writeFile(outputPath, sections.join("\n"), "utf8");
     this.log(`Handover exported: ${outputPath}`);
   }
 }
