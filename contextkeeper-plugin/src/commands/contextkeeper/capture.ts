@@ -1,13 +1,14 @@
-﻿import { AgentiaCommand } from "@copado/agentia-plugin-sdk";
+import { AgentiaCommand } from "@copado/agentia-plugin-sdk";
 import { Flags } from "@oclif/core";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { saveHandover } from "../../lib/storage.js";
-
-const execFileAsync = promisify(execFile);
+import {
+  saveHandover,
+  exportsDir,
+  writeFileAtomically,
+} from "../../lib/storage.js";
+import { collectGitSnapshot, renderGitContext } from "../../lib/git.js";
+import { renderHandoverMarkdown } from "../../lib/markdown.js";
 
 export default class Capture extends AgentiaCommand {
   static description =
@@ -29,53 +30,24 @@ export default class Capture extends AgentiaCommand {
       default: "None recorded",
     }),
     next: Flags.string({ description: "Next steps", required: true }),
+    tags: Flags.string({
+      description: "Comma-separated tags to make the handover easier to find",
+      default: "",
+    }),
   };
 
   async run(): Promise<void> {
     const { flags } = await this.parse(Capture);
 
-    const runGit = async (args: string[]) => {
-      const { stdout } = await execFileAsync("git", args, {
-        cwd: process.cwd(),
-        windowsHide: true,
-        maxBuffer: 1024 * 1024,
-      });
-      return stdout.trim();
-    };
+    // Git context is enrichment, never a requirement: when Git is unavailable the
+    // handover is still captured and the reason is recorded alongside it.
+    const gitSnapshot = await collectGitSnapshot();
+    const gitContext = renderGitContext(gitSnapshot);
 
-    let gitContext: string;
-    try {
-      const repository = await runGit(["rev-parse", "--show-toplevel"]);
-      const branch = await runGit(["branch", "--show-current"]);
-      const status = await runGit(["status", "--short"]);
-
-      let commits = "No commits yet.";
-      try {
-        commits =
-          (await runGit([
-            "log",
-            "-5",
-            "--pretty=format:%h | %s | %ad",
-            "--date=short",
-          ])) || "No commits yet.";
-      } catch {
-        // Empty Git history is valid.
-      }
-
-      gitContext = [
-        `Repository: ${repository}`,
-        `Branch: ${branch || "(detached HEAD)"}`,
-        "",
-        "Working tree:",
-        status || "No uncommitted changes detected.",
-        "",
-        "Recent commits:",
-        commits,
-      ].join("\n");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.error(`Could not capture Git context: ${message}`);
-    }
+    const tags = flags.tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag) => tag !== "");
 
     const handover = {
       id: randomUUID().slice(0, 8),
@@ -87,47 +59,23 @@ export default class Capture extends AgentiaCommand {
       nextSteps: flags.next,
       createdAt: new Date().toISOString(),
       gitContext,
+      gitSnapshot,
+      ...(tags.length > 0 ? { tags } : {}),
     };
 
     await saveHandover(handover);
 
-    const directory = path.join(process.cwd(), ".contextkeeper", "exports");
-    await mkdir(directory, { recursive: true });
-
-    const markdown = [
-      `# ${handover.title}`,
-      "",
-      `**Created:** ${handover.createdAt}`,
-      `**Handover ID:** ${handover.id}`,
-      "",
-      "## Current Task",
-      handover.task,
-      "",
-      "## Completed Work",
-      handover.completed,
-      "",
-      "## Key Decisions",
-      handover.decisions,
-      "",
-      "## Blockers",
-      handover.blockers,
-      "",
-      "## Next Steps",
-      handover.nextSteps,
-      "",
-      "## Git Development Context",
-      "",
-      handover.gitContext,
-      "",
-    ].join("\n");
-
-    const outputPath = path.join(directory, `${handover.id}.md`);
-    await writeFile(outputPath, markdown, "utf8");
+    const outputPath = path.join(exportsDir(), `${handover.id}.md`);
+    await writeFileAtomically(outputPath, renderHandoverMarkdown(handover));
 
     this.log("ContextKeeper handover captured successfully.");
     this.log(`ID: ${handover.id}`);
     this.log(`Title: ${handover.title}`);
-    this.log(`Git branch: ${gitContext.split("\n")[1]?.replace("Branch: ", "")}`);
+    if (gitSnapshot.available) {
+      this.log(`Git branch: ${gitSnapshot.branch || "(detached HEAD)"}`);
+    } else {
+      this.log(`Git context unavailable: ${gitSnapshot.reason ?? "unknown"}`);
+    }
     this.log(`Markdown: ${outputPath}`);
     this.log(`Resume with: agentia contextkeeper resume ${handover.id}`);
   }

@@ -1,4 +1,4 @@
-﻿---
+---
 name: contextkeeper-handover
 description: Preserve and restore development session context using the ContextKeeper Agentia CLI plugin. Use when starting or ending a coding session, switching tasks, or handing work to another developer.
 ---

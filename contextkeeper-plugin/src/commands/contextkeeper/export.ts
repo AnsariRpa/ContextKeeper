@@ -1,8 +1,12 @@
-﻿import { AgentiaCommand } from "@copado/agentia-plugin-sdk";
+import { AgentiaCommand } from "@copado/agentia-plugin-sdk";
 import { Args } from "@oclif/core";
-import { getHandover } from "../../lib/storage.js";
-import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
+import {
+  getHandover,
+  exportsDir,
+  writeFileAtomically,
+} from "../../lib/storage.js";
+import { renderHandoverMarkdown } from "../../lib/markdown.js";
 
 export default class Export extends AgentiaCommand {
   static description = "Export a saved handover as a Markdown file";
@@ -20,38 +24,11 @@ export default class Export extends AgentiaCommand {
 
     if (!handover) this.error(`No handover found with ID: ${args.id}`);
 
-    const directory = path.join(process.cwd(), ".contextkeeper", "exports");
-    await mkdir(directory, { recursive: true });
-
-    const sections = [
-      `# ${handover.title}`,
-      "",
-      `**Created:** ${handover.createdAt}`,
-      `**Handover ID:** ${handover.id}`,
-      "",
-      "## Current Task",
-      handover.task,
-      "",
-      "## Completed Work",
-      handover.completed,
-      "",
-      "## Key Decisions",
-      handover.decisions,
-      "",
-      "## Blockers",
-      handover.blockers,
-      "",
-      "## Next Steps",
-      handover.nextSteps,
-      "",
-    ];
-
-    if (handover.gitContext) {
-      sections.push("## Git Development Context", "", handover.gitContext, "");
-    }
-
-    const outputPath = path.join(directory, `${handover.id}.md`);
-    await writeFile(outputPath, sections.join("\n"), "utf8");
+    const outputPath = path.join(exportsDir(), `${handover.id}.md`);
+    await writeFileAtomically(
+      outputPath,
+      renderHandoverMarkdown(handover),
+    );
     this.log(`Handover exported: ${outputPath}`);
   }
 }

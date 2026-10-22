@@ -1,0 +1,36 @@
+import type { Handover } from "./storage.js";
+
+/**
+ * Single source of truth for the Markdown report. Both `capture` and `export` use it
+ * so a handover always renders identically, no matter which command produced it.
+ */
+export function renderHandoverMarkdown(handover: Handover): string {
+  const sections: string[] = [
+    `# ${handover.title}`,
+    "",
+    `**Created:** ${handover.createdAt}`,
+    `**Handover ID:** ${handover.id}`,
+  ];
+
+  if (handover.tags && handover.tags.length > 0) {
+    sections.push(`**Tags:** ${handover.tags.join(", ")}`);
+  }
+
+  sections.push("", "## Current Task", handover.task);
+  sections.push("", "## Completed Work", handover.completed);
+  sections.push("", "## Key Decisions", handover.decisions);
+  sections.push("", "## Blockers", handover.blockers);
+  sections.push("", "## Next Steps", handover.nextSteps);
+
+  // Only render an AI summary when one was actually produced.
+  if (handover.summary && handover.summary.trim() !== "") {
+    sections.push("", "## AI Summary", "", handover.summary.trim());
+  }
+
+  if (handover.gitContext && handover.gitContext.trim() !== "") {
+    sections.push("", "## Git Development Context", "", handover.gitContext.trim());
+  }
+
+  sections.push("");
+  return sections.join("\n");
+}

@@ -1,4 +1,4 @@
-﻿# ContextKeeper
+# ContextKeeper
 ### AI-Powered Development Handover Assistant for Copado Agentia CLI
 
 ContextKeeper helps developers preserve development context between work sessions. It combines manually recorded task knowledge with automatically captured Git metadata, saves a structured handover locally, and exports it as Markdown.

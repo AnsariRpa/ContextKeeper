@@ -1,26 +1,51 @@
-﻿import {Args} from '@oclif/core'
-import {AgentiaCommand} from '@copado/agentia-plugin-sdk'
-import {getHandover} from '../../lib/storage.js'
+import { Args } from "@oclif/core";
+import { AgentiaCommand } from "@copado/agentia-plugin-sdk";
+import { getHandover } from "../../lib/storage.js";
+import { collectGitSnapshot, diffGitSnapshots } from "../../lib/git.js";
 
 export default class Resume extends AgentiaCommand {
-  static override description = 'Resume work from a saved handover'
+  static override description = "Resume work from a saved handover";
   static override args = {
-    id: Args.string({description: 'Handover ID', required: true}),
-  }
+    id: Args.string({ description: "Handover ID", required: true }),
+  };
 
   public async run() {
-    const {args} = await this.parse(Resume)
-    const item = await getHandover(args.id)
+    const { args } = await this.parse(Resume);
+    const item = await getHandover(args.id);
 
-    if (!item) this.error(`No handover found with ID "${args.id}". Run agentia contextkeeper list.`)
+    if (!item)
+      this.error(
+        `No handover found with ID "${args.id}". Run agentia contextkeeper list.`,
+      );
 
-    this.log(`\n${item.title}`)
-    this.log(`Created: ${item.createdAt}`)
-    this.log(`\nCURRENT TASK\n${item.task}`)
-    this.log(`\nCOMPLETED\n${item.completed}`)
-    this.log(`\nDECISIONS\n${item.decisions}`)
-    this.log(`\nBLOCKERS\n${item.blockers}`)
-    this.log(`\nNEXT STEPS\n${item.nextSteps}`)
-    return item
+    this.log(`\n${item.title}`);
+    this.log(`Created: ${item.createdAt}`);
+    this.log(`\nCURRENT TASK\n${item.task}`);
+    this.log(`\nCOMPLETED\n${item.completed}`);
+    this.log(`\nDECISIONS\n${item.decisions}`);
+    this.log(`\nBLOCKERS\n${item.blockers}`);
+    this.log(`\nNEXT STEPS\n${item.nextSteps}`);
+
+    // Surface the Git context that was stored with the handover, and tell the
+    // developer when the working tree has drifted away from that snapshot.
+    if (item.gitContext && item.gitContext.trim() !== "") {
+      this.log(`\nGIT CONTEXT AT HANDOVER\n${item.gitContext.trim()}`);
+    } else {
+      this.log(
+        "\nGIT CONTEXT\nNo Git context was recorded with this handover.",
+      );
+    }
+
+    const current = await collectGitSnapshot();
+    const differences = diffGitSnapshots(item.gitSnapshot, current);
+
+    if (differences.length > 0) {
+      this.log("\nWORKING TREE DRIFT SINCE HANDOVER");
+      for (const difference of differences) this.log(`- ${difference}`);
+    } else if (item.gitSnapshot?.available && current.available) {
+      this.log("\nWORKING TREE DRIFT SINCE HANDOVER\nNo differences detected.");
+    }
+
+    return item;
   }
 }

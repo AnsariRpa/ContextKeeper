@@ -4,5 +4,5 @@ oclif.manifest.json
 *.tsbuildinfo
 .sf/
 
-# Local ContextKeeper session data
+# Local ContextKeeper runtime data (handover store and generated exports)
 .contextkeeper/
