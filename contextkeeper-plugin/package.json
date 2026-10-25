@@ -36,7 +36,7 @@
     "hostApi": 1,
     "requires": [],
     "permissions": {
-      "network": [],
+      "network": ["localhost", "127.0.0.1"],
       "files": "project",
       "commands": [],
       "env": []

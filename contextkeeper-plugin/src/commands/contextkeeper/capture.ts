@@ -9,6 +9,7 @@ import {
 } from "../../lib/storage.js";
 import { collectGitSnapshot, renderGitContext } from "../../lib/git.js";
 import { renderHandoverMarkdown } from "../../lib/markdown.js";
+import { generateHandoverSummary } from "../../lib/ai.js";
 
 export default class Capture extends AgentiaCommand {
   static description =
@@ -34,6 +35,11 @@ export default class Capture extends AgentiaCommand {
       description: "Comma-separated tags to make the handover easier to find",
       default: "",
     }),
+    "ai-summary": Flags.boolean({
+      description:
+        "Generate an AI summary with local Ollama (http://localhost:11434)",
+      default: false,
+    }),
   };
 
   async run(): Promise<void> {
@@ -49,7 +55,7 @@ export default class Capture extends AgentiaCommand {
       .map((tag) => tag.trim())
       .filter((tag) => tag !== "");
 
-    const handover = {
+    const handover: Record<string, unknown> = {
       id: randomUUID().slice(0, 8),
       title: flags.title,
       task: flags.task,
@@ -63,10 +69,48 @@ export default class Capture extends AgentiaCommand {
       ...(tags.length > 0 ? { tags } : {}),
     };
 
-    await saveHandover(handover);
+    if (flags["ai-summary"]) {
+      try {
+        const result = await generateHandoverSummary({
+          title: flags.title,
+          task: flags.task,
+          completed: flags.completed,
+          decisions: flags.decisions,
+          blockers: flags.blockers,
+          nextSteps: flags.next,
+          gitContext,
+        });
+
+        handover.summary = result.summary;
+        handover.summarySource = "ai";
+        handover.summaryProvider = result.provider;
+        handover.aiProvider = result.provider;
+        handover.summaryModel = result.model;
+        handover.aiModel = result.model;
+        handover.summaryTimestamp = result.timestamp;
+        handover.summaryGeneratedAt = result.timestamp;
+        handover.summaryCreatedAt = result.timestamp;
+        handover.summaryProvenance = {
+          provider: result.provider,
+          model: result.model,
+          timestamp: result.timestamp,
+        };
+
+        this.log(
+          `AI summary generated using ${result.provider} (${result.model}).`,
+        );
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        const warning = `AI summary could not be generated: ${reason}`;
+        this.warn(warning);
+        this.log(`Warning: ${warning}`);
+      }
+    }
+
+    await saveHandover(handover as any);
 
     const outputPath = path.join(exportsDir(), `${handover.id}.md`);
-    await writeFileAtomically(outputPath, renderHandoverMarkdown(handover));
+    await writeFileAtomically(outputPath, renderHandoverMarkdown(handover as any));
 
     this.log("ContextKeeper handover captured successfully.");
     this.log(`ID: ${handover.id}`);

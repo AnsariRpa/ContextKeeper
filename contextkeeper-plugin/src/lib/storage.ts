@@ -32,6 +32,26 @@ export type Handover = {
   summary?: string;
   /** Provenance of `summary`, so the UI never implies AI that did not run. */
   summarySource?: "ai";
+  /** Provider that generated `summary` (for example "ollama"). */
+  summaryProvider?: string;
+  /** Alias for summaryProvider. */
+  aiProvider?: string;
+  /** Model that generated `summary`. */
+  summaryModel?: string;
+  /** Alias for summaryModel. */
+  aiModel?: string;
+  /** ISO timestamp when `summary` was generated. */
+  summaryTimestamp?: string;
+  /** Alias for summaryTimestamp. */
+  summaryGeneratedAt?: string;
+  /** Alias for summaryTimestamp. */
+  summaryCreatedAt?: string;
+  /** Nested provenance object for convenience. */
+  summaryProvenance?: {
+    provider: string;
+    model: string;
+    timestamp: string;
+  };
   /** Free-form labels that make handovers easier to find. */
   tags?: string[];
 };

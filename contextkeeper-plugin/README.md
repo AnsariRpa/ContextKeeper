@@ -101,6 +101,36 @@ agentia contextkeeper export YOUR_ID
 agentia contextkeeper git-context
 ```
 
+### 6. Capture with an AI summary (optional)
+
+Requires a local [Ollama](https://ollama.com/) instance:
+
+```powershell
+ollama pull qwen2.5:3b
+ollama serve
+```
+
+Then:
+
+```powershell
+agentia contextkeeper capture --title "API integration" --task "Integrate the customer API" --completed "Created request and response models" --decisions "Use the existing HTTP client" --blockers "Waiting for test credentials" --next "Add error handling and integration tests" --ai-summary
+```
+
+The summary is generated from the handover fields and Git context, persisted with provenance (provider, model, timestamp), shown by `resume`, and rendered in Markdown exports. If Ollama is unavailable, times out, or returns invalid output, ContextKeeper keeps the original handover notes and prints a warning instead of pretending a summary was generated.
+
+## Ollama Setup and Limitations
+
+- Install Ollama and run `ollama serve` on `http://localhost:11434`.
+- Pull the default model with `ollama pull qwen2.5:3b`.
+- Only local Ollama is supported; no API keys or environment variables are sent to the model.
+- Requests time out after 10 seconds.
+- AI summaries are optional; capture works unchanged without `--ai-summary`.
+- Generated text quality depends on the local model and may require review.
+
+```powershell
+agentia contextkeeper git-context
+```
+
 ## Generated Files
 
 Runtime data is stored in the current working directory:
